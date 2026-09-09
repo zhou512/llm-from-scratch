@@ -34,8 +34,15 @@ micrograd 用 69 行告诉你答案。做完这个项目：
 │   └── test_nn.py         23 个测试
 └── notes/                 学习笔记
     ├── 01-读懂引擎.md       引擎的原理拆解
-    └── 02-搭建神经网络.md   从 Value 搭到 MLP
+    ├── 02-搭建神经网络.md   从 Value 搭到 MLP
+    └── 03-常见错误对照表.md  按报错查原因的排错表
 ```
+
+> **为什么 `refs/` 是代码快照而不是 git submodule？**
+> 上游仓库完整历史（25 次提交）在 `D:\git-reproduce\_candidates\micrograd-full`。
+> 放进本项目的是快照，因为：submodule 对 git 新手是个负担（克隆要 `--recursive`，
+> 更新要 `submodule update`），而这里只需要「对照阅读」这一个用途。
+> 等你熟悉 git 后，可以换成 submodule 试试——那时你会明白它的取舍。
 
 ## 怎么跑
 
