@@ -26,13 +26,15 @@ micrograd 用 69 行告诉你答案。做完这个项目：
 │   ├── nn.py              神经网络库（42 行）
 │   └── UPSTREAM-README.md 原作者的说明
 ├── src/                   ★ 我自己的实现（从零写，不许抄）
-│   ├── engine.py
-│   └── nn.py
+│   ├── engine.py          （待写）
+│   ├── nn.py              （待写）
+│   └── train.py           训练脚本（已就绪，含 loss 曲线 + 决策边界可视化）
 ├── tests/                 验收测试
-│   ├── test_engine.py
-│   └── test_nn.py
+│   ├── test_engine.py     23 个测试
+│   └── test_nn.py         23 个测试
 └── notes/                 学习笔记
-    └── 01-读懂引擎.md
+    ├── 01-读懂引擎.md       引擎的原理拆解
+    └── 02-搭建神经网络.md   从 Value 搭到 MLP
 ```
 
 ## 怎么跑
@@ -41,26 +43,43 @@ micrograd 用 69 行告诉你答案。做完这个项目：
 # 建虚拟环境（用 uv，最快）
 uv venv .venv
 .venv\Scripts\activate
-uv pip install pytest
+uv pip install pytest matplotlib
 
 # 跑测试
-python -m pytest tests/ -v
+.venv\Scripts\python.exe -m pytest tests/ -v
+
+# 训练（--no-plot 可以快一倍）
+.venv\Scripts\python.exe src\train.py
+.venv\Scripts\python.exe src\train.py --hidden 16 --steps 200
 ```
 
 ## 验收标准
 
-`tests/` 里的测试**全绿**，且是**自己写出来的实现**，不是复制 `refs/`。
+`tests/` 里的 **46 个测试全绿**，且 `src/` 是**自己写出来的实现**，不是复制 `refs/`。
+
+> 测试本身已经用原始实现验证过一遍：把 `refs/micrograd/` 的内容放进 `src/`
+> 时，46 个测试全部通过。所以测试失败一定是你的实现有问题，不是测试写错了。
+
+## 性能提示
+
+micrograd 是**纯 Python 标量运算**——每个参数、每次加减乘除都是独立的 Python 对象。
+`2 -> 16 -> 16 -> 1` 的模型有 337 个参数，训练 200 步约需 **5 分钟**。
+默认参数调小（8 宽、100 步）后约 **40 秒**。
+
+**这不是 bug，是设计取舍**：用可读性换性能。也正因如此，PyTorch 才有存在的意义——
+它把同样的数学用张量 + C++/CUDA 重写，快了 5 个数量级。
 
 ## 学习路线
 
-| 阶段 | 内容 | 产出 |
-|---|---|---|
-| 1 | 读懂 `refs/micrograd/engine.py` | `notes/01-读懂引擎.md` |
-| 2 | 自己实现 `src/engine.py` 的 Value 类 | 测试通过 |
-| 3 | 读懂并实现 `src/nn.py`（Neuron/Layer/MLP） | 测试通过 |
-| 4 | 训练一个二分类 MLP | loss 曲线 + 决策边界图 |
-| 5 | 写笔记 + 完善本 README | 可放简历的项目 |
+| 阶段 | 内容 | 产出 | 状态 |
+|---|---|---|---|
+| 1 | 读懂 `refs/micrograd/engine.py` | `notes/01-读懂引擎.md` | ✅ 讲义已就绪 |
+| 2 | 自己实现 `src/engine.py` 的 Value 类 | `test_engine.py` 全绿 | ⏳ 待你动手 |
+| 3 | 读懂并实现 `src/nn.py` | `test_nn.py` 全绿 | ⏳ 待你动手 |
+| 4 | 训练一个二分类 MLP | loss 曲线 + 决策边界图 | ⏳ 脚本已就绪 |
+| 5 | 写笔记 + 完善本 README | 可放简历的项目 | ⏳ |
 
 ## 结果
 
-（待填：训练曲线、决策边界图、你的发现）
+（待填：你自己的训练曲线、决策边界图、你的发现）
+
