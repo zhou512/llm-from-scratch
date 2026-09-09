@@ -1,0 +1,27 @@
+# ---- 练习仓库（它是自己独立的 git 仓库）----
+git-practice/demo-repo/
+
+# ---- 候选项目调研用的临时下载 ----
+_candidates/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 数据 / 产物 / 模型权重 ----
+data/
+outputs/
+out-*/
+*.bin
+*.pth
+*.ckpt
+*.log
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
