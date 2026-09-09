@@ -6,12 +6,18 @@
     meta.pkl    词表映射（stoi / itos / vocab_size）
 
 用法：
-    .venv\\Scripts\\python.exe data\\prepare.py
-    .venv\\Scripts\\python.exe data\\prepare.py --input data\\input_zh.txt
+    # 英文（TinyShakespeare）
+    .venv\\Scripts\\python.exe data\\prepare.py --out-dir data\\shakespeare_char
+
+    # 中文
+    .venv\\Scripts\\python.exe data\\build_zh_corpus.py
+    .venv\\Scripts\\python.exe data\\prepare.py --input data\\input_zh.txt --out-dir data\\zh_char
 
 说明：
 - 默认读取 data/input.txt（TinyShakespeare，已在仓库里下好）。
 - 换成中文语料时，把文本放到 data/input_zh.txt 再传 --input。
+- ★ 输出目录必须是 data/<dataset>/，且 <dataset> 与 config 里的 dataset 一致，
+  因为 nanoGPT 的 train.py 里写死了 `data_dir = os.path.join('data', dataset)`。
 - ★ 中文处理要点：必须显式用 UTF-8 读写，否则 Windows 默认编码会把中文
   变成乱码，而且不会报错 —— 你会训练出一个只会输出乱码的模型。
 """
@@ -44,8 +50,10 @@ def main():
     parser = argparse.ArgumentParser(description="字符级数据集准备")
     parser.add_argument("--input", default=os.path.join(HERE, "input.txt"),
                         help="原始文本路径（默认 data/input.txt）")
-    parser.add_argument("--out-prefix", default="",
-                        help="输出文件名前缀，例如 --out-prefix zh_ 会生成 zh_train.bin")
+    parser.add_argument("--out-dir", default=HERE,
+                        help="输出目录。nanoGPT 要求数据在 data/<dataset>/ 下，"
+                             "且文件名固定为 train.bin / val.bin / meta.pkl。"
+                             "例如 --out-dir data/shakespeare_char")
     parser.add_argument("--val-ratio", type=float, default=0.1,
                         help="验证集比例（默认 0.1）")
     args = parser.parse_args()
@@ -84,9 +92,11 @@ def main():
     print(f"训练 token 数: {len(train_ids):,}")
     print(f"验证 token 数: {len(val_ids):,}")
 
-    train_path = os.path.join(HERE, f"{args.out_prefix}train.bin")
-    val_path = os.path.join(HERE, f"{args.out_prefix}val.bin")
-    meta_path = os.path.join(HERE, f"{args.out_prefix}meta.pkl")
+    out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    train_path = os.path.join(out_dir, "train.bin")
+    val_path = os.path.join(out_dir, "val.bin")
+    meta_path = os.path.join(out_dir, "meta.pkl")
 
     train_ids.tofile(train_path)
     val_ids.tofile(val_path)
@@ -94,9 +104,14 @@ def main():
         pickle.dump({"vocab_size": vocab_size, "itos": itos, "stoi": stoi}, f)
 
     print()
+    print(f"输出目录: {out_dir}")
     print(f"已写出: {train_path}")
     print(f"已写出: {val_path}")
     print(f"已写出: {meta_path}")
+    print()
+    print("★ 提醒：nanoGPT 的 train.py 里 `data_dir = os.path.join('data', dataset)`，")
+    print("   所以这个目录要放在 data/ 下，且目录名要与 config 里的 dataset 一致。")
+    print(f"   例如 dataset = '{os.path.basename(out_dir)}'")
 
     # 自检：解码前 60 个 token，确认往返正确（中文语料尤其重要）
     sample = "".join(itos[i] for i in train_ids[:60])

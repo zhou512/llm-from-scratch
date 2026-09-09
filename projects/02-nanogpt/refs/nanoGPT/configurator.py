@@ -23,9 +23,11 @@ for arg in sys.argv[1:]:
         assert not arg.startswith('--')
         config_file = arg
         print(f"Overriding config with {config_file}:")
-        with open(config_file) as f:
+        # NOTE: 原版是 open(config_file)，在 Windows 上会用系统默认编码（GBK），
+        # 配置文件里有中文注释就会报 UnicodeDecodeError。显式指定 utf-8。
+        with open(config_file, encoding='utf-8') as f:
             print(f.read())
-        exec(open(config_file).read())
+        exec(open(config_file, encoding='utf-8').read())
     else:
         # assume it's a --key=value argument
         assert arg.startswith('--')
