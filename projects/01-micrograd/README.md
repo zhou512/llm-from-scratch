@@ -48,11 +48,16 @@ micrograd 用 69 行告诉你答案。做完这个项目：
 
 ```bash
 # 建虚拟环境（用 uv，最快）
-uv venv .venv
+# --system-site-packages 让 venv 复用系统已装的 torch（步骤 5 的 PyTorch 对拍需要）
+uv venv .venv --system-site-packages
 .venv\Scripts\activate
 uv pip install pytest matplotlib
 
-# 跑测试
+# ★ 分步实现：每完成一步就跑一次，只测这一步
+.venv\Scripts\python.exe tests\step_by_step.py
+.venv\Scripts\python.exe tests\step_by_step.py --until 3   # 只跑到第 3 步
+
+# 全部实现后跑完整测试
 .venv\Scripts\python.exe -m pytest tests/ -v
 
 # 训练（--no-plot 可以快一倍）
@@ -62,10 +67,30 @@ uv pip install pytest matplotlib
 
 ## 验收标准
 
-`tests/` 里的 **46 个测试全绿**，且 `src/` 是**自己写出来的实现**，不是复制 `refs/`。
+1. **`tests/step_by_step.py` 6 步全通过**（推荐先跑这个，一步一步来）
+2. `tests/` 里的 **46 个测试全绿**
+3. `src/` 是**自己写出来的实现**，不是复制 `refs/`
 
-> 测试本身已经用原始实现验证过一遍：把 `refs/micrograd/` 的内容放进 `src/`
-> 时，46 个测试全部通过。所以测试失败一定是你的实现有问题，不是测试写错了。
+> 两套验证都已在原始实现上跑过：46 个 pytest 测试全绿，
+> 6 步分步检查全通过（含与 PyTorch 的 8 项梯度对拍）。
+> 所以测试失败一定是你的实现有问题，不是测试写错了。
+
+### 两套验证的分工
+
+| 工具 | 什么时候用 | 特点 |
+|---|---|---|
+| `tests/step_by_step.py` | 写代码过程中 | 6 步渐进，报错定位到具体步骤 |
+| `tests/test_engine.py` + `test_nn.py` | 实现完成后 | 46 个细粒度测试，覆盖边界情况 |
+
+### 三种独立的正确性验证
+
+| 方式 | 依据 | 说服力 |
+|---|---|---|
+| 手推梯度 | 链式法则 | 基础 |
+| **与 PyTorch autograd 对拍** | 工业级实现 | 强 |
+| **数值微分（有限差分）** | 导数定义 | 强，且不依赖任何框架 |
+
+三条独立路径都对上，说明实现是真的对，而不是「碰巧过了测试」。
 
 ## 性能提示
 
@@ -81,10 +106,19 @@ micrograd 是**纯 Python 标量运算**——每个参数、每次加减乘除�
 | 阶段 | 内容 | 产出 | 状态 |
 |---|---|---|---|
 | 1 | 读懂 `refs/micrograd/engine.py` | `notes/01-读懂引擎.md` | ✅ 讲义已就绪 |
-| 2 | 自己实现 `src/engine.py` 的 Value 类 | `test_engine.py` 全绿 | ⏳ 待你动手 |
+| 2 | 自己实现 `src/engine.py` 的 Value 类 | `step_by_step.py` 6 步 + 46 测试全绿 | ⏳ 待你动手 |
 | 3 | 读懂并实现 `src/nn.py` | `test_nn.py` 全绿 | ⏳ 待你动手 |
 | 4 | 训练一个二分类 MLP | loss 曲线 + 决策边界图 | ⏳ 脚本已就绪 |
 | 5 | 写笔记 + 完善本 README | 可放简历的项目 | ⏳ |
+
+### 笔记清单
+
+| 文件 | 内容 |
+|---|---|
+| `notes/01-读懂引擎.md` | 引擎的原理拆解（三件事模式、拓扑排序、`+=` 累加） |
+| `notes/02-搭建神经网络.md` | 从 Value 搭到 MLP（Module 模板方法、`sum(..., self.b)` 陷阱） |
+| `notes/03-常见错误对照表.md` | 按报错查原因 |
+| **`notes/04-分步实现指南.md`** | **★ 6 步骨架 + 填空，每步附手推过程** |
 
 ## 结果
 
