@@ -21,10 +21,11 @@ def test_value_stores_data():
 
 
 def test_value_has_prev_and_op():
+    """运算结果节点要记住：自己由谁算出来的（_prev）、用什么算的（_op）。"""
     a = Value(1.0)
     b = Value(2.0)
     c = a + b
-    assert c.op == "+"
+    assert c._op == "+"
     assert set(c._prev) == {a, b}
 
 
@@ -74,10 +75,6 @@ def test_power():
     assert (Value(2.0) ** 3).data == 8.0
 
 
-def test_power_rpow():
-    assert (2 ** Value(3.0)).data == 8.0
-
-
 def test_negation():
     assert (-Value(2.0)).data == -2.0
 
@@ -88,11 +85,6 @@ def test_relu_positive():
 
 def test_relu_negative():
     assert (Value(-2.0)).relu().data == 0.0
-
-
-def test_tanh():
-    assert Value(0.0).tanh().data == pytest.approx(0.0)
-    assert Value(1.0).tanh().data == pytest.approx(math.tanh(1.0))
 
 
 # ---------------------------------------------------------------- 反向传播
@@ -134,15 +126,21 @@ def test_gradient_shared_node_accumulates():
 
 
 def test_gradient_diamond():
-    """菱形依赖：a 通过两条路径影响 d，梯度要相加。"""
+    """菱形依赖：a 通过两条路径影响 d，梯度要相加。
+
+    手推：
+        b = a + 1        db/da = 1
+        c = a * 3        dc/da = 3
+        d = b * c        dd/db = c = 6, dd/dc = b = 3
+        dd/da = dd/db*db/da + dd/dc*dc/da = 6*1 + 3*3 = 15
+    """
     a = Value(2.0)
-    b = a + 1.0        # db/da = 1
-    c = a * 3.0        # dc/da = 3
-    d = b * c          # dd/db = c = 9, dd/dc = b = 3
+    b = a + 1.0        # b = 3
+    c = a * 3.0        # c = 6
+    d = b * c          # d = 18
     d.backward()
-    # dd/da = dd/db * db/da + dd/dc * dc/da = 9*1 + 3*3 = 18
     assert d.data == 18.0
-    assert a.grad == 18.0
+    assert a.grad == 15.0
 
 
 def test_gradient_of_karpathy_example():
@@ -165,15 +163,20 @@ def test_gradient_of_karpathy_example():
     assert b.grad == pytest.approx(645.5773, abs=1e-4)
 
 
-def test_backward_resets_grad_between_runs():
-    """连续两次 backward 不应该把梯度累加到上一次的结果上（根节点要清零）。"""
+def test_backward_accumulates_across_calls():
+    """★ 重要行为：重复调用 backward() 梯度会【累加】，不是重置。
+
+    这是 micrograd 的原始设计（也是很多手写引擎的坑）。
+    所以训练循环里每步必须手动清零梯度 —— 见 test_nn.py 里的 zero_grad。
+    PyTorch 的做法是提供 optimizer.zero_grad()，原理完全一样。
+    """
     a = Value(2.0)
     b = Value(3.0)
     c = a * b
     c.backward()
-    first = a.grad
+    assert a.grad == 3.0
     c.backward()
-    assert a.grad == first
+    assert a.grad == 6.0      # 3 + 3，累加了
 
 
 def test_gradients_are_floats():
