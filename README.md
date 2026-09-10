@@ -13,8 +13,26 @@
 
 | # | 项目 | 状态 | 说明 |
 |---|---|---|---|
-| 01 | micrograd 复现 | 🚧 进行中 | 从零实现标量级自动求导引擎（~111 行纯 Python，零依赖） |
-| 02 | nanoGPT 复现 | ⏳ 计划中 | 在 RTX 4070 8GB 上从零训练字符级 GPT，含中文语料版 |
+| 01 | [micrograd 复现](projects/01-micrograd/) | ✅ 已完成 | 从零实现标量级自动求导引擎，147 行纯 Python、零依赖；含 46 个测试、与 PyTorch autograd 对拍、数值微分三重验证 |
+| 02 | [nanoGPT 复现](projects/02-nanogpt/) | 🚧 进行中 | 在 RTX 4070 8GB 上从零训练字符级 GPT，含中文语料版与超参对比实验 |
+
+## 项目 01 的成果
+
+| | |
+|---|---|
+| 实现 | `src/engine.py`（83 行）+ `src/nn.py`（64 行） |
+| 验证 | 6 步分步检查全过、46 个测试全绿、与 PyTorch autograd 8 项梯度对拍一致、数值微分误差 < 1e-4 |
+| 结果 | moons 二分类 loss 0.94 → 0.25，准确率 86% |
+| 笔记 | 6 篇（原理拆解、常见错误、分步指南、训练原理、资料清单） |
+
+## git 练习材料
+
+`git-practice/` 下有给 git 新手用的材料：
+
+- `git-cheatsheet.md` —— 速查卡（三区模型、撤销决策表、reflog 读法）
+- `04-推送到GitHub与PR流程.md` —— 推送与 PR 完整流程
+- `05-PR流程本地演练.md` + `local-remote/demo-pr.ps1` —— 不需要网络就能练 PR
+- `demo-repo/` —— 一个独立的练习仓库
 
 ## 为什么做这些
 

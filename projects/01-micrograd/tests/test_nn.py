@@ -7,12 +7,26 @@
     src/nn.py       ->  class Module / Neuron / Layer / MLP
 如果你把 nn.py 里的 import 写成 `from .engine import Value`（推荐）或
 `from src.engine import Value`，都能跑通。
+
+★ 关于随机性：MLP/Neuron 用 random.uniform 初始化权重，所以依赖权重的
+断言必须固定随机种子，否则会偶发失败。实测 `test_mlp_gradients_reach_first_layer`
+曾有约 10% 的概率失败 —— 原因是 ReLU 可能把所有神经元推到负区间
+（俗称 "dead ReLU"），导致第一层梯度确实全是 0。
+这不是实现 bug，是测试没有控制随机性。
 """
+
+import random
 
 import pytest
 
 from src.engine import Value
 from src.nn import MLP, Layer, Module, Neuron
+
+
+@pytest.fixture(autouse=True)
+def _fixed_random_seed():
+    """每个测试前固定随机种子，保证结果可复现。"""
+    random.seed(1337)
 
 
 # ---------------------------------------------------------------- Module 基类
