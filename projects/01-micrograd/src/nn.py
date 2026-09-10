@@ -1,12 +1,5 @@
 import random
 
-# 为什么不用 `from .engine import Value`：
-# 相对导入要求 nn.py 被当作「包内模块」加载（即 `import src.nn`），
-# 但 train.py 是用脚本方式运行的（`python src/train.py`），它把 src/ 加进
-# sys.path 后 `from nn import MLP`，此时 nn 是顶层模块、没有父包，
-# `.engine` 就会报 "attempted relative import with no known parent package"。
-#
-# 用 try/except 兼容两种加载方式：
 try:
     from .engine import Value          # 包方式：pytest 的 `from src.nn import ...`
 except ImportError:                    # noqa: BLE001
@@ -24,16 +17,16 @@ class Module:
 class Neuron(Module):
 
     def __init__(self,nin,nonlin = True):
-        self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]
-        self.b = Value(0)
+        self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]   #一个列表，存放[0~1的权值]
+        self.b = Value(0)       
         self.nonlin = nonlin
 
     def __call__(self, x):
-        act = sum((wi * xi for wi,xi in zip(self.w,x)),self.b)
-        return act.relu() if self.nonlin else act
+        act = sum((wi * xi for wi,xi in zip(self.w,x)),self.b)  # act = b + x0w0 + w1x1 +...
+        return act.relu() if self.nonlin else act   # nonlin 决定是否激活函数
 
     def parameters(self):
-        return self.w + [self.b]
+        return self.w + [self.b]  #返回一个列表,包含权值和初始值
 
     def __repr__(self):
             return f"{'ReLU' if self.nonlin else 'Linear'}Neuron({len(self.w)})"
@@ -41,10 +34,10 @@ class Neuron(Module):
 class Layer(Module):
 
     def __init__(self,nin,nout,**kwargs):
-        self.neurons = [Neuron(nin,**kwargs) for _ in range(nout)]
+        self.neurons = [Neuron(nin,**kwargs) for _ in range(nout)]  #一个存储nin维神经元的列表，共有nout层, **kwargs这里指nonlin参数的值, like:Layer(3,4,nonlin = True)
 
     def __call__(self,x):
-        out = [n(x) for n in self.neurons]
+        out = [n(x) for n in self.neurons]  #n(x)表示调用神经元的call，输出act
         return out[0] if len(out) == 1 else out
 
     def parameters(self):
