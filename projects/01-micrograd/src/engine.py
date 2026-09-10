@@ -1,7 +1,7 @@
 class Value:
     "记录一个节点的数值和他的梯度"
 
-    def __init__(self, data, _children = (), _op = ''):
+    def __init__(self, data, _children=(), _op=''):
         self.data = data
         self.grad = 0
         self._prev = set(_children)
