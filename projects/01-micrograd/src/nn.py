@@ -18,7 +18,7 @@ class Neuron(Module):
 
     def __init__(self,nin,nonlin = True):
         self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]   #一个列表，存放[0~1的权值]
-        self.b = Value(0)       
+        self.b = Value(0)
         self.nonlin = nonlin
 
     def __call__(self, x):
