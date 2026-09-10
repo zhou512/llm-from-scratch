@@ -1,0 +1,22 @@
+# 默认：所有文本文件在仓库里统一存 LF
+* text=auto
+
+# 明确指定语言类型
+*.py    text diff=python
+*.md    text
+*.txt   text
+*.cfg   text
+*.ini   text
+*.ps1   text
+
+# Windows 批处理必须用 CRLF，否则会出问题
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 二进制文件不要碰
+*.png   binary
+*.jpg   binary
+*.bin   binary
+*.pkl   binary
+*.pt    binary
+*.pth   binary
