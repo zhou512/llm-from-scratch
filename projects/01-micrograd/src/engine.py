@@ -60,13 +60,13 @@ class Value:
 
     def __neg__(self):
         return self * -1
-    
+
     def __radd__(self, other):
         return self + other
-    
+
     def __sub__(self, other):
         return self + (-other)
-    
+
     def __rsub__(self, other):
         return other + (-self)
 
@@ -80,4 +80,4 @@ class Value:
         return self * other **-1
 
     def __repr__(self):
-            return f"Value(data={self.data}, grad={self.grad})"
+        return f"Value(data={self.data}, grad={self.grad})"
