@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.nn import functional as F
 import random
-CHAR_SIZE = 27
+CHAR_SIZE = 29
 CHAR_VECTOR_SIZE = 10
 BLOCK_SIZE = 3
 W1_SIZE = 200
@@ -15,10 +15,10 @@ def build_dataset(data:list):
     Y = []
     blocksize = 3
     for name in data:
-        context = blocksize * [0]
-        for c in name:
-            ix = ctoi[c]
-            X.append(context)
+        context = blocksize * [ctoi['<P>']]
+        seq = [ctoi['<S>']] + [ctoi[n] for n in name] + [ctoi['<E>']] 
+        for ix in seq:
+            X.append(list(context))
             Y.append(ix)
             context = context[1:] + [ix]
     X = torch.tensor(X)
@@ -27,13 +27,9 @@ def build_dataset(data:list):
 
 names = open("names.txt","r").read().splitlines()
 chars = sorted(set("".join(names)))
-ctoi = {c:i+1 for i,c in enumerate(chars)}
-ctoi["."] = 0
+vocab = ["<P>","<S>","<E>"] + chars
+ctoi = {c:i for i,c in enumerate(vocab)}
 itoc = {i:c for c,i in ctoi.items()}
-for i in range(len(names)):
-    names[i] = '.' + names[i] + '.'
-
-
 
 random.seed(42)
 random.shuffle(names)
@@ -44,11 +40,15 @@ Xtr,Ytr = build_dataset(names[:n1])
 Xdv,Ydv = build_dataset(names[n1:n2])
 Xts,Yts = build_dataset(names[n2:])
 
+
+names = ['<S>' + name + '<E>' for name in names]
+
+
 C = torch.randn((CHAR_SIZE,CHAR_VECTOR_SIZE))   #将每个字符的索引对应到成一个向量
-W1 = torch.randn((CHAR_VECTOR_SIZE * BLOCK_SIZE,W1_SIZE))
-B1 = torch.randn(W1_SIZE)
-W2 = torch.randn((W1_SIZE,CHAR_SIZE))
-B2 = torch.randn(CHAR_SIZE)
+W1 = torch.randn((CHAR_VECTOR_SIZE * BLOCK_SIZE,W1_SIZE)) * 0.2
+B1 = torch.randn(W1_SIZE) * 0.01
+W2 = torch.randn((W1_SIZE,CHAR_SIZE)) * 0.1
+B2 = torch.randn(CHAR_SIZE) * 0.01
 parameters = [C,W1,W2,B1,B2]
 
 for p in parameters:
@@ -97,7 +97,7 @@ print(f"test loss = {loss}")
 g = torch.Generator().manual_seed(11468)
 for _ in range(20):
     out = []
-    context = [0] * BLOCK_SIZE
+    context = [ctoi['<P>']] * BLOCK_SIZE
     while True:
         emb = C[torch.tensor(context)] #(1,3,10)
         act = torch.tanh(emb.view(1,-1) @ W1 + B1)
@@ -105,10 +105,8 @@ for _ in range(20):
         probs = F.softmax(logits,dim=1)
         ix = torch.multinomial(probs,num_samples=1,replacement=True,generator=g).item()
         context = context[1:] + [ix]
-        out.append(itoc[ix])
-        if ix == 0:
-            if len(out) >= 2:
-                break
-            else:
-                continue
+        if ix != ctoi['<S>'] and ix != ctoi['<E>']:
+            out.append(itoc[ix])
+        if ix == ctoi['<E>']:
+            break 
     print(''.join(out))

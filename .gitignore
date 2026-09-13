@@ -23,6 +23,13 @@ out-*/
 *.pkl
 *.log
 
+# ---- Jupyter notebook ----
+# .ipynb 是 JSON，git diff 看不出来你改了什么，review 起来很痛苦。
+# 学习时可以用 notebook（配合 VS Code 的单元格体验更好），
+# 但存进仓库的应该是 .py。详见 projects/02-makemore/notes/03-分段运行代码.md
+*.ipynb
+.ipynb_checkpoints/
+
 # 例外：数据准备脚本必须进仓库，否则别人无法复现你的数据集
 !projects/*/data/
 !projects/*/data/*.py
