@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from dataclasses import dataclass
 import os
+import random
 os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 @dataclass
 class GPTConfig:
@@ -154,47 +155,59 @@ class GPT(nn.Module):
         return logits, loss
 
 
-""" num_return_sequences = 5
-max_length = 50 """
+num_return_sequences = 5
+max_length = 50
 """ model = GPT.from_pretrained('gpt2') """
 model = GPT(GPTConfig())
-model.eval()
 model.to('cuda')
 
 
 import tiktoken
 config = GPTConfig()
 enc = tiktoken.get_encoding("gpt2")
-""" tokens = enc.encode("hello,i'm a student")
-tokens = torch.tensor(tokens, dtype=torch.long, device='cuda').unsqueeze(0)
-tokens = tokens.repeat(num_return_sequences, 1)
-x = tokens.to('cuda') """
-with open('input.txt','r',encode='utf-8') as f:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+path_en = os.path.join(BASE_DIR,'..','data','input.txt')
+with open(path_en,'r',encoding='utf-8') as f:
     text = f.read()
 tokens = enc.encode(text)
-buffer = tokens[:(12*768+1)]
-y = torch.tensor(buffer[1:],dtype=torch.long,device='cuda').view(config.block_size,-1)
-x = torch.tensor(buffer[:12*768],dtype=torch.long,device='cuda').view(config.block_size,-1)
 
-optimizer = torch.optim.AdamW(model.parameters())
-for i in range(50):
+
+B, T = 12, 256
+optimizer = torch.optim.AdamW(model.parameters(),lr=3e-4)
+
+model.train()
+for i in range(1000):
+    start_idx = random.randint(0,len(tokens) - B*T -1)
+    batch = tokens[start_idx: start_idx+ B * T+ 1]
+    buffer = torch.tensor(batch,dtype=torch.long)
+    x = buffer[:-1].view(B,T).to('cuda',non_blocking=True)
+    y = buffer[1:].view(B,T).to('cuda',non_blocking=True)
     logits, loss = model(x,y)
-    print(loss.item())
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+    if (i+1) % 20 == 0:
+        print(f"step{i+1}: loss = {loss.item()}")
 
-""" while x.size(1) < max_length:
+tokens_gen = enc.encode("CORIOLANUS:")
+tokens_gen = torch.tensor(tokens_gen, dtype=torch.long, device='cuda').unsqueeze(0)
+tokens_gen = tokens_gen.repeat(num_return_sequences, 1)
+x_gen = tokens_gen.to('cuda')
+
+model.eval()
+while x_gen.size(1) < max_length:
     with torch.no_grad():
-        logits = model(x)
+        logits, loss = model(x_gen)
+        # print(logits.shape)
         last_logits = logits[:, -1 , :]
         probs = F.softmax(last_logits, dim=-1)
         topk_probs, topk_indices = torch.topk(probs,k=50,dim=-1)
+        topk_probs = topk_probs / topk_probs.sum(dim=-1, keepdim=True)
         next_token = torch.multinomial(topk_probs, num_samples=1)
         next_token = torch.gather(topk_indices, -1, next_token)
-        x = torch.cat((x, next_token), dim=1)
+        x_gen = torch.cat((x_gen, next_token), dim=1)
 
 for i in range(num_return_sequences):
-    tokens = x[i, :max_length].tolist()
+    tokens = x_gen[i, :max_length].tolist()
     decoded = enc.decode(tokens)
-    print(">",decoded) """
+    print(">",decoded)
