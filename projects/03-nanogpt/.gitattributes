@@ -1,0 +1,29 @@
+# 默认所有文本文件都规范化为 LF
+* text=auto eol=lf
+
+# 明确指定常见文本类型
+*.py    text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.toml  text eol=lf
+*.txt   text eol=lf
+*.cfg   text eol=lf
+*.sh    text eol=lf
+
+# 二进制文件不要转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.pt    binary
+*.pth   binary
+*.bin   binary
+*.safetensors binary

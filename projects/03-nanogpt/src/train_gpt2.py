@@ -4,7 +4,11 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 import os
 import random
+import tiktoken
+import time
+import math
 os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+
 @dataclass
 class GPTConfig:
     n_embd: int = 768
@@ -60,10 +64,13 @@ class CausalSelfAttention(nn.Module):
         q = q.view(B, T, self.n_head, C // self.n_head,).transpose(1,2)
         k = k.view(B, T, self.n_head, C // self.n_head,).transpose(1,2)
         v = v.view(B, T, self.n_head, C // self.n_head,).transpose(1,2)
-        wei = q @ k.transpose(-2,-1) * (C // self.n_head) ** -0.5
-        wei = wei.masked_fill(self.bias[:,:,:T,:T] == 0,float("-inf"))
-        wei = F.softmax(wei,dim=-1)
-        y = wei @ v
+
+        y = F.scaled_dot_product_attention(q,k,v)
+        # wei = q @ k.transpose(-2,-1) * (C // self.n_head) ** -0.5
+        # wei = wei.masked_fill(self.bias[:,:,:T,:T] == 0,float("-inf"))
+        # wei = F.softmax(wei,dim=-1)
+        # y = wei @ v
+
         y = y.transpose(1,2).contiguous().view(B,T,C)
         y = self.c_proj(y)
         return y
@@ -80,7 +87,15 @@ class GPT(nn.Module):
             ln_f = nn.LayerNorm(config.n_embd)
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
-
+        self.transformer.wte.weight = self.lm_head.weight
+        self.apply(self.init_weight)
+    def init_weight(self,module):
+        if isinstance(module,nn.Linear):
+            torch.nn.init.normal_(module.weight,mean=0,std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module,nn.Embedding):
+            torch.nn.init.normal_(module.weight,mean=0,std=0.02)
     @classmethod
     def from_pretrained(cls, model_type, override_args=None):
         assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
@@ -154,40 +169,92 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.view(-1,logits.shape[-1]), targets.view(-1))
         return logits, loss
 
+    def generate(self, idx):
+        pass
+
+class DataLoader:
+    """从数据集中加载数据，用分词器encode后，可供batch获取"""
+    def __init__(self, B, T,):
+        self.B = B
+        self.T = T
+        self.enc = tiktoken.get_encoding("gpt2")
+        self.data = ''
+        self.token_len = 0
+
+    def load_data(self,path):
+        with open(path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        tokens = self.enc.encode(text)
+        self.token_len = len(tokens)
+        print(f'the length of tokens is {len(tokens)}')
+        print(f'finish a loop needs {len(tokens) // (B *T) + 1} batches')
+        self.data = torch.tensor(tokens, dtype=torch.long)
+
+    def get_batch(self):
+        start_idx = random.randint(0, self.token_len - B * T -1)
+        batch = self.data[start_idx: start_idx + B * T + 1]
+        x = batch[:-1].view(B, T)
+        y = batch[1:].view(B, T)
+        return x,y
 
 num_return_sequences = 5
 max_length = 50
 """ model = GPT.from_pretrained('gpt2') """
-model = GPT(GPTConfig())
+model = GPT(GPTConfig(vocab_size=50304))
 model.to('cuda')
 
 
-import tiktoken
+
 config = GPTConfig()
 enc = tiktoken.get_encoding("gpt2")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 path_en = os.path.join(BASE_DIR,'..','data','input.txt')
-with open(path_en,'r',encoding='utf-8') as f:
-    text = f.read()
-tokens = enc.encode(text)
+""" with open(path_en,'r',encoding='utf-8') as f:
+    text = f.read() """
+#tokens = enc.encode(text)
 
 
-B, T = 12, 256
-optimizer = torch.optim.AdamW(model.parameters(),lr=3e-4)
+B, T = 8, 512
+data_loader = DataLoader(B, T)
+data_loader.load_data(path_en)
+optimizer = torch.optim.AdamW(model.parameters(),lr=6e-4,betas=(0.9, 0.95),eps=1e-8)
+
+max_lr = 6e-4
+min_lr = 6e-5
+max_steps = 5000
+warm_up_steps = 100
+def get_lr(step):
+    if step < warm_up_steps:
+        return max_lr * step / warm_up_steps
+    if step > max_steps:
+        return min_lr
+    decay_ratio = (step - warm_up_steps) / (max_steps - warm_up_steps)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (max_lr - min_lr)
+
 
 model.train()
-for i in range(1000):
-    start_idx = random.randint(0,len(tokens) - B*T -1)
-    batch = tokens[start_idx: start_idx+ B * T+ 1]
-    buffer = torch.tensor(batch,dtype=torch.long)
-    x = buffer[:-1].view(B,T).to('cuda',non_blocking=True)
-    y = buffer[1:].view(B,T).to('cuda',non_blocking=True)
-    logits, loss = model(x,y)
+torch.set_float32_matmul_precision('high') 
+#model = torch.compile(model)
+
+for step in range(max_steps):
+    t0 = time.time()
+    x, y = data_loader.get_batch()
+    x, y = x.to('cuda'), y.to('cuda')
+    with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+        logits, loss = model(x, y)
     optimizer.zero_grad()
     loss.backward()
+    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    lr = get_lr(step + 1)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
     optimizer.step()
-    if (i+1) % 20 == 0:
-        print(f"step{i+1}: loss = {loss.item()}")
+    torch.cuda.synchronize()
+    t1 = time.time()
+    if (step+1) % 20 == 0:
+        print(f"step{step+1}: loss = {loss.item():.6f} | lr = {lr:.4f} | norm = {norm:.4f} | time = {(t1-t0) * 1000:6f}ms")
 
 tokens_gen = enc.encode("CORIOLANUS:")
 tokens_gen = torch.tensor(tokens_gen, dtype=torch.long, device='cuda').unsqueeze(0)
